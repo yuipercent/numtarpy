@@ -1,5 +1,32 @@
+"""utilitary classes for compiling code."""
+
 from __future__ import annotations
-from typing import Callable,Concatenate
+
+class tar_attribute_error(BaseException):
+    def __init__(self,tartype : tarredtypederivative_cprwtr,attrstr : str):
+        self.root = tartype
+        self.add_note("Using tarredtypederivative object : "+str(tarredtypederivative_cprwtr)+" of class "+str(self.root.ctype))
+        self.add_note("When accessing attribute of name : "+attrstr+" which could not be accessed.")
+        self.add_note("Known attributes of "+str(tartype)+" are the following:")
+        for item in tartype.cfs.keys():
+            self.add_note(" Function"+str(self.cfs[item])+" of attrname "+item)
+        super().__init__()
+
+class tarredtypederivative_cprwtr():
+    def __init__(self,classtype : type,*args,**kwargs):
+        print(classtype,args,kwargs)
+        quit()
+        self.cfs : dict[str,function] = dict()
+        self.ctype = classtype
+        self.cobj = classtype(args,kwargs)
+    
+    def __getattr__(self,attrstr : str):
+        if not attrstr in self.cfs:
+            raise tar_attribute_error
+
+class rwtr_protocol():
+    def __init__(self):
+        pass
 
 class structuralclass():
     def __init__(self):
@@ -9,7 +36,7 @@ class structuralclass():
 
 class pinnedIndex():
     def __init__(self,name : str,board : pinBoard = None):
-        self.root : None | pinList
+        self.root : None | pinList = None
         self.varef = name
         self.root = None
         if not board == None:
@@ -20,26 +47,31 @@ class pinnedIndex():
         return self.root[self]
 
 class pinList():
+    """A list that supports index pinning"""
     def __init__(self):
         self.main = list()
         self.pinkeys = list()
         self.pinvalues = list()
     
     def __updatepins(self,ind : int,addvalue : int):
+        """Internal processing : used to update the indexes of the variables. ind argument is not included in the interval"""
         for indexindex,index in enumerate(self.pinvalues):
-            if index > ind:
+            if index > ind:     # <=> placer le pin après l'object car l'object lui même est fixe
                 self.pinvalues[indexindex] += addvalue
 
     def __updatepinsinclusive(self,ind : int,addvalue : int):
+        """Internal processing : used to update the indexes of the variables. ind argument is included in the interval"""
         for indexindex,index in enumerate(self.pinvalues):
-            if index >= ind:
+            if index >= ind:    # <=> placer le pin avant l'objet car l'objet lui même est déplacé
                 self.pinvalues[indexindex] += addvalue
     
     def pin(self,pin : pinnedIndex,index : int):
-        self.pinkeys.append(pin)
+        """Adds a pin at the end of the list"""
+        self.pinkeys.append(pin)        # Aucune update nécéssaire car le pin est à la fin
         self.pinvalues.append(index)
         pin.root = self
     
+    @property
     def len(self):
         return len(self.main)
 
@@ -51,12 +83,14 @@ class pinList():
             self.main.append(obj)
 
     def insert(self,i : int,obj):
+        """Inserts a pin after the object of index i"""
         self.main.insert(i,obj)
-        self.__updatepins(i,1)
+        self.__updatepins(i,1)  # Update les indexs des objects
 
     def insertinclusive(self,i : int,obj):
+        """Inserts a pin before the object of index i"""
         self.main.insert(i,obj)
-        self.__updatepins(i,1)
+        self.__updatepins(i,1)  # Update les indexs des objects
 
     def __iter__(self):
         for item in self.main:
@@ -131,12 +165,12 @@ class pline():
 class generator():
     def __init__(self):
         self.content = pinList()
-        self.indents = list()
+        self.indents = pinList()
         self.cindent = 0
     def newLine(self,noautoindent : bool = False) -> pline:
         a = pline()
-        if noautoindent == False and self.content.len() >= 1 and self.content[-1].len() > 0:
-            self.cindent += self.content[-1][-1].isIndentIncreaser
+        if noautoindent == False and self.content.len() >= 1 and self.content[-1].len() > 0:    # Evite l'erreur dans le cas où c'est la première ligne
+            self.cindent += self.content[-1][-1].isIndentIncreaser                              # Modifie l'indent si besoin
         self.content.append(a)
         self.indents.append(self.cindent)
         return a
@@ -152,16 +186,27 @@ class generator():
         for ind,item in enumerate(self.content):
             yield (self.indents[ind], self.content[ind])
     
-    def paste(self,topaste : generator) -> generator:
+    def paste(self,topaste : generator,isindentstatic : bool = False) -> generator:
+        """Paste a generator's code on to this one. isindentstatic arguments is to modify if you want the code's indent to be the same as the pasted code's end or to be reset afterwards"""
         ogindent = self.cindent
         for strindent,strline in topaste.iterlines():
-            self.cindent = ogindent + strindent
-            self.newLine(noautoindent = True).construct(strline)
+            if isindentstatic == False:
+                self.cindent = ogindent + strindent                 # Modifie l'indent manuellement dans le cas où la fonction veut l'indent original après.
+            self.newLine(noautoindent = True).construct(strline)    # Utilise sans l'autoindent car le code a déjà ses propres indents
         return self
 
 class varepository():
     def __init__(self):
-        pass
+        self.repo : dict[str,var] = dict()
+        self.varwrappers : dict[str,tarredtypederivative_cprwtr] = dict()
+    def addvaref(self,varname : str,**carac):
+        a = var(carac)
+        self.repo[varname] = a
+        return a
+    def __getitem__(self,varname : str):
+        return self.repo[varname]
+    def hasItem(self,varname):
+        return (varname in(self.repo))
 
 class pinBoard():
     class pinRep():
@@ -180,3 +225,4 @@ class pinBoard():
         self.pins[obj.varef] = obj
     def __getitem__(self,key : str):
         return pinBoard.pinRep(self.pins[key])
+

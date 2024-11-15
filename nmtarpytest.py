@@ -3,6 +3,7 @@ import numpy
 import sys
 import os
 import numba
+import inspect as isp
 
 class Chunk():
     tarConverter = nmtar.tarBankConverter()
@@ -37,9 +38,17 @@ with nmtory.config as param:
     param.ProtocolAmount = 6
     param.ProtocolMemoryAmount = 2048
 
+@nmtory.protocol()
+def test101(i : nmtar.refinery.taskBoard):
+    with nmtory.blocks[nmtory.administration]:
+
+
+"""
 trpipe = nmtory.pipe()
 with trpipe.config as param:
-    param
+    param"""
+
+
 
 #@nmtory.archCommand()
 #def stop():
